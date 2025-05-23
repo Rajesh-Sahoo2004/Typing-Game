@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Typing Game</title>
+  <style>
+    * {
+      background-color: #2E3033;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Arial', sans-serif;
+    }
+
+    #navigation {
+      color: #ffb6c1;
+      font-size: 27px;
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #navigation img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    #typee {
+      color: #dee3bf;
+      text-align: center;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      user-select: none;
+      font-size: 20px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      border-radius: 5px;
+      min-height: 200px;
+      outline: none;
+    }
+
+    #timer, #wpm, #accuracy {
+      color: #ffb6c1;
+      font-size: 22px;
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    #button-container {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background-color: #ffb6c1;
+      color: #2E3033;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .btn:hover {
+      background-color: #f9a8d4;
+    }
+
+    select {
+      font-size: 16px;
+      padding: 7px 12px;
+      border-radius: 5px;
+      border: none;
+      background-color: #ffb6c1;
+      color: #ff69b4;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    select option {
+      color: #ff69b4;
+      background-color: #2E3033;
+    }
+
+    select:hover {
+      background-color: #f9a8d4;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.2s ease;
+    }
+
+    .wrong-shake {
+      animation: shake 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(1.3);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-2px); }
+      50% { transform: translateX(2px); }
+      75% { transform: translateX(-2px); }
+      100% { transform: translateX(0); }
+    }
+
+    #restart-screen {
+      display: none;
+      text-align: center;
+      color: #ffb6c1;
+      margin-top: 40px;
+      font-size: 24px;
+      animation: fadeIn 0.5s ease;
+    }
+
+    #restart-screen p {
+      margin-bottom: 20px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="navigation">
+    <!-- <img src="type.jpg" alt="Logo" /> -->
+    <p>Typing Game</p>
+  </div>
+
+  <div id="typee" tabindex="0" contenteditable="false">
+    The quick brown fox jumps over the lazy dog. This sentence contains every letter of the English alphabet and is commonly used to test typing speed and accuracy. Keep practicing to improve your typing skills and become more efficient with each attempt.
+  </div>
+
+  <div id="timer">Time: 60s</div>
+  <div id="wpm">WPM: 0</div>
+  <div id="accuracy">Accuracy: 100%</div>
+
+  <div id="button-container">
+    <select id="time-select">
+      <option value="30">30 seconds</option>
+      <option value="60" selected>1 minute</option>
+      <option value="120">2 minutes</option>
+      <option value="0">Until the paragraph ends</option>
+    </select>
+
+    <div class="btn-group">
+      <button class="btn" onclick="startGame()">Start</button>
+      
+    </div>
+
+    <button class="btn" onclick="location.reload()">Reset</button>
+    <button class="btn" onclick="exitGame()">Exit</button>
+  </div>
+
+  <div id="restart-screen">
+    <p>🎉 Time's up!<br>Good job! Keep practicing. 💪</p>
+    <button class="btn" onclick="location.reload()">Restart</button>
+  </div>
+
+  <script>
+    const typee = document.getElementById('typee');
+    const timerDisplay = document.getElementById('timer');
+    const wpmDisplay = document.getElementById('wpm');
+    const accuracyDisplay = document.getElementById('accuracy');
+    const timeSelect = document.getElementById('time-select');
+    const originalText = typee.innerText.trim();
+    const restartScreen = document.getElementById('restart-screen');
+
+    let gameStarted = false;
+    let typedChars = [];
+    let timer = 60;
+    let intervalId;
+
+    function startGame() {
+      if (gameStarted) return;
+      gameStarted = true;
+      typedChars = [];
+      timer = parseInt(timeSelect.value, 10);
+      if (timer === 0) {
+        timerDisplay.innerText = `Time: ∞`;
+      } else {
+        timerDisplay.innerText = `Time: ${timer}s`;
+      }
+      wpmDisplay.innerText = `WPM: 0`;
+      accuracyDisplay.innerText = `Accuracy: 100%`;
+      typee.contentEditable = "true";
+      typee.focus();
+      renderText();
+      placeCursorAfterTyped();
+
+      if (timer > 0) {
+        intervalId = setInterval(() => {
+          timer--;
+          timerDisplay.innerText = `Time: ${timer}s`;
+          if (timer <= 0) {
+            clearInterval(intervalId);
+            endGame();
+          }
+        }, 1000);
+      }
+    }
+
+    function endGame() {
+      gameStarted = false;
+      typee.contentEditable = "false";
+      restartScreen.style.display = "block";
+    }
+
+    function renderText() {
+      function escapeHTML(str) {
+        return str.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;');
+      }
+
+      let typedHTML = '';
+      for (const obj of typedChars) {
+        const color = obj.correct ? '#ffff00' : '#ff4d4d';
+        const className = obj.correct ? 'fade-in' : 'fade-in wrong-shake';
+        typedHTML += `<span class="${className}" style="color:${color}; display:inline-block;">${escapeHTML(obj.char)}</span>`;
+      }
+
+      const restText = originalText.substring(typedChars.length);
+      const safeRest = escapeHTML(restText);
+      typee.innerHTML = typedHTML + `<span style="color:#dee3bf;">${safeRest}</span>`;
+    }
+
+    function placeCursorAfterTyped() {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      const typedSpans = typee.querySelectorAll('span');
+      if (typedSpans.length === 0) {
+        if (typee.childNodes.length > 0) {
+          range.setStart(typee.childNodes[0], 0);
+        } else {
+          range.setStart(typee, 0);
+        }
+      } else {
+        const lastTypedSpan = typedSpans[typedSpans.length - 1];
+        const len = lastTypedSpan.textContent.length;
+        range.setStart(lastTypedSpan.childNodes[0] || lastTypedSpan, len);
+      }
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      typee.focus();
+    }
+
+    function updateStats() {
+      const elapsed = (timeSelect.value === "0") 
+        ? null 
+        :  (parseInt(timeSelect.value, 10) - timer);
+      const correctChars = typedChars.filter(c => c.correct).length;
+      const totalTyped = typedChars.length;
+      const words = correctChars / 5;
+
+      let wpm = 0;
+      if (elapsed !== null && elapsed > 0) {
+        wpm = Math.floor(words / (elapsed / 60));
+      } else if (elapsed === null) {
+        if (!window.startTime) window.startTime = Date.now();
+        const now = Date.now();
+        const secondsElapsed = (now - window.startTime) / 1000;
+        if (secondsElapsed > 0) {
+          wpm = Math.floor(words / (secondsElapsed / 60));
+        }
+      }
+
+      const accuracy = totalTyped > 0 ? Math.floor((correctChars / totalTyped) * 100) : 100;
+      wpmDisplay.innerText = `WPM: ${wpm}`;
+      accuracyDisplay.innerText = `Accuracy: ${accuracy}%`;
+
+      if (timeSelect.value === "0" && typedChars.length === originalText.length) {
+        endGame();
+      }
+    }
+
+    typee.addEventListener('keydown', e => {
+      if (!gameStarted) {
+        e.preventDefault();
+        return;
+      }
+
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        if (typedChars.length > 0) {
+          typedChars.pop();
+          renderText();
+          placeCursorAfterTyped();
+          updateStats();
+        }
+        return;
+      }
+
+      if (e.key.length === 1) {
+        if (typedChars.length < originalText.length) {
+          const expectedChar = originalText[typedChars.length];
+          const correct = e.key === expectedChar;
+          typedChars.push({ char: e.key, correct });
+          renderText();
+          placeCursorAfterTyped();
+          updateStats();
+        }
+        e.preventDefault();
+      } else {
+        e.preventDefault();
+      }
+    });
+
+    typee.addEventListener('paste', e => e.preventDefault());
+
+    function exitGame() {
+      document.body.innerHTML = `
+        <div style="color: #ffb6c1; text-align: center; padding: 100px; font-size: 24px;">
+          👋 Game closed. See you again!
+        </div>
+      `;
+    }
+
+   
+  </script>
+</body>
+</html>
